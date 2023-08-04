@@ -1,0 +1,6 @@
+go 1.20
+
+use (
+	./17_mini_app_cli
+	./19_automated_tests/19_1_introduction
+)
