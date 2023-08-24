@@ -4,4 +4,6 @@ use (
 	./17_mini_app_cli
 	./19_automated_tests/19_1_introduction
 	./19_automated_tests/19_2_advanced_tests/interfaces
+	./23_database
+	./24_basic_crud
 )
