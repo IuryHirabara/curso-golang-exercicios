@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type user struct {
@@ -141,4 +143,89 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Não foi possível converter a resposta para json"))
 		return
 	}
+}
+
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	id, err := strconv.ParseUint(params["id"], 10, 32)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Não foi possível obter o id"))
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível obter o corpo da requisição"))
+		return
+	}
+
+	var user user
+	if err := json.Unmarshal(body, &user); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível converter o corpo para json"))
+		return
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Erro ao tentar conectar ao banco de dados"))
+		return
+	}
+	defer db.Close()
+
+	// somente usamos o statement para operações que vão de alguma forma alterar os dados. Ex: Insert, Update e Delete.
+	statement, err := db.Prepare("UPDATE users SET name = ?, email = ? WHERE id = ?")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível preparar o statement"))
+		return
+	}
+	defer statement.Close()
+
+	if _, err := statement.Exec(user.Name, user.Email, id); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível atualizar o usuário"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	id, err := strconv.ParseUint(params["id"], 10, 32)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Não foi possível obter o id"))
+		return
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível conectar ao banco"))
+		return
+	}
+	defer db.Close()
+
+	statement, err := db.Prepare("DELETE FROM users WHERE id = ?")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível preparar o statement"))
+		return
+	}
+	defer statement.Close()
+
+	if _, err := statement.Exec(id); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Não foi possível deletar o usuário"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
